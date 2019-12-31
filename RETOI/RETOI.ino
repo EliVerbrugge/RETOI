@@ -4,11 +4,12 @@
  * - Eli Verbrugge, 2019
  ***********************************************/
 
-#include "RETOIUtil.h"
+#include "RETOI.h"
 
 void setup()
 {
   Serial.begin(115200);
+  Serial.flush();
 }
 
 void loop() 
@@ -16,74 +17,70 @@ void loop()
   //monitor serial port to check for new route being loaded in
   if(Serial.available())
   {
+    int read = Serial.read();
+    Serial.write((char)read);
     //the 'S' character indicates that a new route is about to be loaded onto the arduino
-    if((char)Serial.read() == 'S')
+    if((char)read == 'S')
     {
       loadPoints();
+    }
+    //the 'R' character indicates that the route should begin
+    else if((char)read == 'R')
+    {
+      runRoute();
     }
   }
 }
 
 //read in a stream of data of the form distance, incline+.....+distance, incline
-//we assume each piece of data has 4 bytes, and the amount of points is also communicated
+//we assume each piece of data has 2 bytes, and the amount of points is also communicated
 void loadPoints()
 {
   //wait till we have available bytes to read
   while(!Serial.available());
 
   //read in the first character which will indicate the amount of points in the journey
-  journeyLength = Serial.read();
-  char dist[4];
-  char incline[4];
+  int read = Serial.read();
+  journeyLength = read;
+  while(!Serial.available());
+  read = Serial.read();
+  journeyLength = read << 8 | journeyLength;
 
+  Serial.print(journeyLength);
+
+  int16_t dist = 0;
+  int16_t incline = 0;
   for(int i = 0; i < journeyLength; i++)
   {
-    //read in the first 4 bytes, which are for the distance
-    for(int j = 0; j < 4; j++)
-    {
-      dist[j] = (char)Serial.read();
-    }
-    Journey[i].distance = charToFloat(dist);
+    //read in the first 2 bytes, which are for the distance
+    while(!Serial.available());
+    read = Serial.read();
+    dist = read;
 
-    //read in the next 4 bytes, which are for the incline
-    for(int k = 0; k < 4; k++)
-    {
-      incline[k] = (char)Serial.read();
-    }
-    Journey[i].incline = charToFloat(incline);
+    while(!Serial.available());
+    read = Serial.read();
+    dist = read << 8 | dist;
+
+    Journey[i].distance = dist;
+    //Serial.print(dist);
+
+    //read in the next 2 bytes, which are for the incline
+    while(!Serial.available());
+    read = Serial.read();
+    incline = read;
+    
+    while(!Serial.available());
+    read = Serial.read();
+    incline = read << 8 | incline;
+
+    Journey[i].incline = incline;
+    //Serial.print(incline);
   }
+  Serial.print(Journey[0].distance);
+
 }
 
-void floatToChar(char* output, float value)
+void runRoute()
 {
-	union u_tag 
-  {
-	  byte b[4];
-	  float fval;
-	} u;
 
-	u.fval = value;
-
-	output[0] = u.b[0];
-	output[1] = u.b[1];
-	output[2] = u.b[2];
-	output[3] = u.b[3];
 }
-
-float charToFloat(char* value)
-{
-	union u_tag 
-  {
-    byte b[4];
-    float fval;
-	} u;
-
-  u.b[0] = value[0];
-	u.b[1] = value[1];
-	u.b[2] = value[2];
-	u.b[3] = value[3];
-
-	return u.fval;
-}
-
-
