@@ -1,6 +1,7 @@
 
 import serial, re, struct, math, time
 from struct import *
+import threading
 import serial.tools.list_ports
 import xml.etree.ElementTree as ET
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -14,9 +15,9 @@ class Window(QtWidgets.QWidget):
             text="Compute points",
             clicked=self.compute
         )
-        self.send_button = QtWidgets.QPushButton(
-            text="Send",
-            clicked=self.send
+        self.load_button = QtWidgets.QPushButton(
+            text="Load Points",
+            clicked=self.load
         )
         self.browse_button = QtWidgets.QPushButton(
             text="Browse for GPX file",
@@ -25,6 +26,16 @@ class Window(QtWidgets.QWidget):
         self.connect_button = QtWidgets.QPushButton(
             text="Connect", 
             clicked=self.connect
+            
+        )
+        self.start_button = QtWidgets.QPushButton(
+            text="Start Route", 
+            clicked=self.start
+            
+        )
+        self.stop_button = QtWidgets.QPushButton(
+            text="Stop", 
+            clicked=self.stop
             
         )
         self.fileName = ""
@@ -44,7 +55,9 @@ class Window(QtWidgets.QWidget):
             self.comboBox.addItem(comport.description)
         vlay.addWidget(self.comboBox)
         vlay.addWidget(self.connect_button)
-        vlay.addWidget(self.send_button)
+        vlay.addWidget(self.load_button)
+        vlay.addWidget(self.start_button)
+        vlay.addWidget(self.stop_button)
 
         hlay.addLayout(vlay)
         lay.addLayout(hlay)
@@ -68,32 +81,44 @@ class Window(QtWidgets.QWidget):
             self.Popup.setGeometry(100, 200, 100, 100)
             self.Popup.show()
 
-    def send(self):
+    def load(self):
         self.ser.write(pack('c',b'S'))
-        self.ser.write(pack('h',len(self.data_points)))
-        print(len(self.data_points))
-        print(pack('h',len(self.data_points)))
-        print(self.ser.read())
-        print(self.ser.read())
-        print(self.ser.read())
-        print(self.ser.read())
-        print(self.ser.read())
 
-        for i in range(len(self.data_points)):
+        for i in range(4):
             dist = pack('h',int(round(self.data_points[i][0],2)*1000))
             self.ser.write(dist)
-            #print(int(round(self.data_points[i][0],2)*1000))
-            #print(self.ser.read())
-            #print(self.ser.read())
+
             incline = pack('h',int(round(self.data_points[i][1],2)*1000))
             self.ser.write(incline)
-            #print(int(round(self.data_points[i][1],2)*1000))
-            #print(self.ser.read())
-            #print(self.ser.read())
-        print(self.ser.read())
-        print(self.ser.read())
-        return
-        
+
+    def start(self):
+        self.ser.write(pack('c',b'R'))
+        self.stop_threads = False
+        self.thread = threading.Thread(target=self.read, args=(self.ser, lambda: self.stop_threads))
+        self.thread.daemon = True
+        self.thread.start()
+
+    def read(self, ser, stop):
+        i = 4
+        while True:
+            if stop():
+                print("Killing thread")
+                break
+            reading = ser.read()
+            print(reading)
+            if reading == b'N':
+                print("Writing to board")
+                dist = pack('h',int(round(self.data_points[i][0],2)*1000))
+                self.ser.write(dist)
+
+                incline = pack('h',int(round(self.data_points[i][1],2)*1000))
+                self.ser.write(incline)
+                i+=1
+
+    def stop(self):
+        self.stop_threads = True
+        self.thread.join()
+
     def compute(self):
         #grab the array of points containing lat/lon and elevation
         points = grab_xml_info(self.fileName)

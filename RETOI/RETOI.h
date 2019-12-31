@@ -2,6 +2,9 @@
 #define RETOI_h
 
 #include "Arduino.h"
+//using https://github.com/rlogiacco/CircularBuffer for Circular Buffer
+//will be rewritten in future release
+#include <CircularBuffer.h>
 
 //constant to define the wheel circumference of the bike being used
 //used to map rotations to total distance
@@ -21,7 +24,6 @@ struct Leg {
    int16_t incline;
 }; 
 
-//the "Journey", which is a series of legs with incline and distance, max of 3000 legs
-Leg Journey[3000];
-
+//the "Journey", which is a series of legs with incline and distance, buffer of 4 values
+CircularBuffer<Leg,4> JourneyBuffer;
 #endif
