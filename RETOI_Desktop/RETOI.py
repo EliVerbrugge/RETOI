@@ -5,7 +5,7 @@ import threading
 import serial.tools.list_ports
 import xml.etree.ElementTree as ET
 from PyQt5 import QtCore, QtWidgets, QtGui
-from PyQt5.QtWidgets import QFileDialog, QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QApplication, QScrollArea, QMainWindow, QProgressBar
+from PyQt5.QtWidgets import QFileDialog, QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QApplication, QScrollArea, QMainWindow, QProgressBar, QTableWidget,QTableWidgetItem
 from Utilities import grab_xml_info, calc_distance
 
 class Window(QtWidgets.QWidget):
@@ -76,10 +76,11 @@ class Window(QtWidgets.QWidget):
         self.fileName, _ = QFileDialog.getOpenFileName(self,"Select a GPX file with the desired route", "","All Files (*)", options=options)
 
     def buildExamplePopup(self):
-            name = "boo"
-            self.Popup = PopupWindow(name)
-            self.Popup.setGeometry(100, 200, 100, 100)
-            self.Popup.show()
+            name = "Progress"
+            Popup = PopupWindow(name)
+            Popup.setGeometry(100, 200, 215, 55)
+            Popup.show()
+            return Popup
 
     def load(self):
         self.ser.write(pack('c',b'S'))
@@ -100,20 +101,32 @@ class Window(QtWidgets.QWidget):
 
     def read(self, ser, stop):
         i = 4
+        itemAt = 0
         while True:
             if stop():
                 print("Killing thread")
+                self.ser.write(pack('h',-99))
                 break
             reading = ser.read()
             print(reading)
-            if reading == b'N':
+            if reading == b'N' and i < len(self.data_points):
                 print("Writing to board")
                 dist = pack('h',int(round(self.data_points[i][0],2)*1000))
                 self.ser.write(dist)
-
+                print(pack('h',int(round(self.data_points[i][0],2)*1000)))
                 incline = pack('h',int(round(self.data_points[i][1],2)*1000))
                 self.ser.write(incline)
+                print(pack('h',int(round(self.data_points[i][1],2)*1000)))
                 i+=1
+                itemAt+=1
+                self.itemsList.changeStyle(itemAt, 'color: red')
+                if itemAt != 0:
+                    self.itemsList.changeStyle(itemAt-1, 'color: black')
+                self.itemsList.scrollAdd(18)
+            elif reading == b'N':
+                print("Out of points")
+                self.ser.write(pack('h',-99))
+
 
     def stop(self):
         self.stop_threads = True
@@ -137,9 +150,10 @@ class Window(QtWidgets.QWidget):
                 self.data_points.append((distance,incline))
             prev_point = (lat, lon)
             prev_elev = elev
-        self.buildExamplePopup()
+        
         for i in range(len(self.data_points)):
             self.itemsList.addItem(QLabel("Distance: " + str(round(self.data_points[i][0],2)) + "  Incline: " + str(round(self.data_points[i][1],2))))
+        return
 
 class ItemsList(QWidget):
     def __init__(self, parent=None):
@@ -150,17 +164,25 @@ class ItemsList(QWidget):
         listBox = QVBoxLayout(self)
         self.setLayout(listBox)
 
-        scroll = QScrollArea(self)
-        listBox.addWidget(scroll)
-        scroll.setWidgetResizable(True)
-        scrollContent = QWidget(scroll)
+        self.scroll = QScrollArea(self)
+        listBox.addWidget(self.scroll)
+        self.scroll.setWidgetResizable(True)
+        scrollContent = QWidget(self.scroll)
 
         self.scrollLayout = QVBoxLayout(scrollContent)
         scrollContent.setLayout(self.scrollLayout)
-        scroll.setWidget(scrollContent)
+        self.scroll.setWidget(scrollContent)
 
     def addItem(self, item):
         self.scrollLayout.addWidget(item)
+
+    def scrollAdd(self, amount):
+        vScroll = self.scroll.verticalScrollBar()
+        vScroll.setValue(vScroll.value()+amount)
+
+    def changeStyle(self, index, style):
+        self.scrollLayout.itemAt(index).widget().setStyleSheet(style)
+
 
 class PopupWindow(QWidget):
     def __init__(self, name):
@@ -171,10 +193,15 @@ class PopupWindow(QWidget):
         self.initUI()
 
     def initUI(self):
-        lblName = QLabel(self.name, self)
         self.progress = QProgressBar(self)
-        self.progress.setGeometry(100, 200, 25, 40)
+        self.progress.setGeometry(15, 15, 200, 25)
+        self.progress.setMaximum(100)
+        self.progressVal = 0
         self.show()
+
+    def incrementProgress(self, increment):
+        self.progressVal += increment
+        self.progress.setValue(self.progressVal)
         
 if __name__ == '__main__':
     import sys
@@ -182,5 +209,6 @@ if __name__ == '__main__':
     win = Window()
     w = 600; h = 300
     win.resize(w, h)
+    win.setWindowTitle('RETOI')
     win.show()
     sys.exit(app.exec_())
