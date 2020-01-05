@@ -35,6 +35,15 @@ void loop()
 
 void initRoute()
 {
+  int read;
+  while(!Serial.available());
+  read = Serial.read();
+  total_legs = read;
+  
+  while(!Serial.available());
+  read = Serial.read();
+  total_legs = read << 8 | total_legs;
+
   //read in 4 points to start so that there is a buffer
   for(int i = 0; i < 4; i++)
   {
@@ -47,6 +56,12 @@ void runRoute()
   while(running)
   {
     sensorReading = analogRead(SensorPin);
+    
+    /********************************************************
+    Add code here to make motor move according to incline
+    JourneyBuffer[0].incline
+    ********************************************************/
+
     if(sensorReading > 3)
     {
       analogWrite(IndicatorPin,250);
@@ -64,13 +79,27 @@ void runRoute()
 
     if(currDistance > JourneyBuffer[0].distance)
     {
-      Serial.write('N');
-      //Serial.print(JourneyBuffer[0].distance);
-      //Serial.print(JourneyBuffer[0].incline);
+      //if we have read in the total number of points, we end the route
+      if(currentLeg == total_legs)
+      {
+        running = false;
+        break;
+      }
+      else
+      {
+        Serial.write('N');
+        currDistance = 0;
+      }
+    }
+    //always read in from serial buffer if there is info available
+    if(Serial.available())
+    {
       readInPoint();
-      currDistance = 0;
     }
   }
+  //cleanup the run data
+  currDistance = 0;
+  JourneyBuffer.clear();
 }
 
 //read in a stream of data of the form distance, incline+.....+distance, incline
@@ -84,17 +113,19 @@ void readInPoint()
   //read in the first 2 bytes, which are for the distance
   while(!Serial.available());
   read = Serial.read();
-  //the distance cannot be negative, so terminate if we receive a negative point
-  if(read < -1)
-  {
-    running = false;
-    return;
-  }
   dist = read;
 
   while(!Serial.available());
   read = Serial.read();
   dist = read << 8 | dist;
+
+  //special case, if the distance is negative, we terminate 
+  //as that indicates the route is done
+  if(dist < 0)
+  {
+    running = false;
+    return;
+  }
 
   //read in the next 2 bytes, which are for the incline
   while(!Serial.available());
@@ -110,4 +141,5 @@ void readInPoint()
   newLeg.incline = incline;
 
   JourneyBuffer.push(newLeg);
+  currentLeg++;
 }

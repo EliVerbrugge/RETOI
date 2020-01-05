@@ -84,6 +84,8 @@ class Window(QtWidgets.QWidget):
 
     def load(self):
         self.ser.write(pack('c',b'S'))
+        length = pack('h',int(len(self.data_points)))
+        self.ser.write(length)
 
         for i in range(4):
             dist = pack('h',int(round(self.data_points[i][0],2)*1000))
@@ -105,7 +107,8 @@ class Window(QtWidgets.QWidget):
         while True:
             if stop():
                 print("Killing thread")
-                self.ser.write(pack('h',-99))
+                self.ser.write(pack('h',-1))
+                self.itemsList.changeStyle(itemAt, 'color: black')
                 break
             reading = ser.read()
             print(reading)
@@ -125,7 +128,6 @@ class Window(QtWidgets.QWidget):
                 self.itemsList.scrollAdd(18)
             elif reading == b'N':
                 print("Out of points")
-                self.ser.write(pack('h',-99))
 
 
     def stop(self):

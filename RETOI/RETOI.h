@@ -8,8 +8,10 @@
 
 //constant to define the wheel circumference of the bike being used
 //used to map rotations to total distance, units are meters
-const float WHEEL_CIRCUMFERENCE = 1;
+const float WHEEL_CIRCUMFERENCE = 20;
 
+int total_legs = 0; 
+int currentLeg = 0;
 //the current distance traveled within the current leg
 float currDistance = 0;
 //the current reading of the light sensor
