@@ -10,6 +10,10 @@
 //used to map rotations to total distance, units are meters
 const float WHEEL_CIRCUMFERENCE = 20;
 
+//stepper motor constants
+#define DEGREES_PER_STEP 1.8
+#define STEPS_PER_REV 200
+
 int total_legs = 0; 
 int currentLeg = 0;
 //the current distance traveled within the current leg
@@ -32,4 +36,7 @@ bool sensorTriggeredFlag;
 
 //the "Journey", which is a series of legs with incline and distance, buffer of 4 values
 CircularBuffer<Leg,4> JourneyBuffer;
+
+//stepper motor object
+Stepper stepperMotor(STEPS_PER_REV, 8, 9, 10, 11);
 #endif

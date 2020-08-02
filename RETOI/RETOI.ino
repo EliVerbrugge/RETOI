@@ -58,9 +58,10 @@ void runRoute()
     sensorReading = analogRead(SensorPin);
     
     /********************************************************
-    Add code here to make motor move according to incline
+    make motor move according to incline
     JourneyBuffer[0].incline
     ********************************************************/
+    stepperMotor.step(JourneyBuffer[0].incline/DEGREES_PER_STEP);
 
     if(sensorReading > 3)
     {
